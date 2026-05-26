@@ -1,0 +1,46 @@
+{
+  "name": "labapp-widget",
+  "version": "0.1.0",
+  "description": "EGLAB floating desktop widget for quick site access",
+  "main": "main.js",
+  "author": "ErzYh",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.eglab.labapp",
+    "productName": "labApp",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "labApp",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

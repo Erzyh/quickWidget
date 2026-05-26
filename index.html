@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>labApp</title>
+<style>
+  :root {
+    --bubble: 72px;
+    --gap: 8px;
+    --panel-w: 304px;
+    --panel-h: 432px;
+    --accent-a: #667eea;
+    --accent-b: #764ba2;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    color: #2b2b2b;
+  }
+
+  #stage {
+    position: absolute;
+    width: var(--panel-w);
+    height: var(--panel-h);
+    pointer-events: none;
+  }
+  body.corner-bottom-right #stage { right: var(--gap); bottom: var(--gap); transform-origin: 100% 100%; }
+  body.corner-bottom-left #stage { left: var(--gap); bottom: var(--gap); transform-origin: 0% 100%; }
+  body.corner-top-right #stage { right: var(--gap); top: var(--gap); transform-origin: 100% 0%; }
+  body.corner-top-left #stage { left: var(--gap); top: var(--gap); transform-origin: 0% 0%; }
+
+  #bubble {
+    position: absolute;
+    width: var(--bubble);
+    height: var(--bubble);
+    background: linear-gradient(135deg, var(--accent-a) 0%, var(--accent-b) 100%);
+    box-shadow: 0 6px 18px rgba(102, 126, 234, 0.30),
+                0 1px 3px rgba(0,0,0,0.06),
+                inset 0 1px 1px rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform .35s cubic-bezier(.22,1,.36,1),
+                opacity .25s ease,
+                box-shadow .25s ease;
+    will-change: transform, opacity;
+  }
+  body.corner-bottom-right #bubble { right: 0; bottom: 0; border-radius: 50% 50% 14px 50%; transform-origin: 100% 100%; }
+  body.corner-bottom-left #bubble { left: 0; bottom: 0; border-radius: 50% 50% 50% 14px; transform-origin: 0% 100%; }
+  body.corner-top-right #bubble { right: 0; top: 0; border-radius: 50% 14px 50% 50%; transform-origin: 100% 0%; }
+  body.corner-top-left #bubble { left: 0; top: 0; border-radius: 14px 50% 50% 50%; transform-origin: 0% 0%; }
+
+  #bubble:hover {
+    transform: scale(1.06);
+    box-shadow: 0 10px 24px rgba(102, 126, 234, 0.40),
+                0 2px 6px rgba(0,0,0,0.10);
+  }
+  #bubble svg {
+    width: 42%;
+    height: 42%;
+    fill: #fff;
+    opacity: .95;
+  }
+
+  body.expanded #bubble {
+    transform: scale(.2);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #panel {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.86);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(20, 20, 40, 0.12),
+                0 2px 6px rgba(0,0,0,0.05),
+                inset 0 1px 0 rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.55);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(.22);
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+    transition: transform .38s cubic-bezier(.22,1,.36,1),
+                opacity .25s cubic-bezier(.22,1,.36,1);
+  }
+  body.corner-bottom-right #panel { transform-origin: 100% 100%; }
+  body.corner-bottom-left #panel { transform-origin: 0% 100%; }
+  body.corner-top-right #panel { transform-origin: 100% 0%; }
+  body.corner-top-left #panel { transform-origin: 0% 0%; }
+
+  body.expanded #panel {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+    transition: transform .42s cubic-bezier(.22,1,.36,1),
+                opacity .22s ease-out;
+  }
+
+  .header {
+    padding: 14px 16px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, rgba(102,126,234,0.06), rgba(118,75,162,0.06));
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+  .header h1 {
+    font-size: 13px;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: .3px;
+  }
+  .header-buttons {
+    display: flex;
+    gap: 4px;
+  }
+  .icon-btn {
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background .15s, color .15s, transform .1s;
+  }
+  .icon-btn:hover { background: rgba(0,0,0,0.06); color: #222; }
+  .icon-btn:active { transform: scale(.92); }
+  .icon-btn.danger:hover { background: #ff5252; color: #fff; }
+
+  .grid {
+    flex: 1;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    overflow-y: auto;
+    align-content: start;
+  }
+  .grid::-webkit-scrollbar { width: 6px; }
+  .grid::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+
+  .tile {
+    aspect-ratio: 1;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04),
+                0 0 0 1px rgba(0,0,0,0.03);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: transform .18s cubic-bezier(.22,1,.36,1),
+                box-shadow .18s ease;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(6px) scale(.96);
+  }
+  body.expanded .tile {
+    animation: tileIn .42s cubic-bezier(.22,1,.36,1) forwards;
+  }
+  @keyframes tileIn {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(20,20,40,0.10),
+                0 0 0 1px rgba(0,0,0,0.04);
+  }
+  .tile:active { transform: translateY(0) scale(.95); }
+  .tile .ic {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.10);
+  }
+  .tile .lbl {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: #444;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tile .del {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+  }
+  body.edit .tile .del { display: flex; }
+  body.edit .tile { animation: wobble .5s ease-in-out infinite alternate; }
+  @keyframes wobble {
+    from { transform: rotate(-1.2deg); }
+    to { transform: rotate(1.2deg); }
+  }
+
+  .tile.add {
+    background: rgba(0,0,0,0.025);
+    border: 1.5px dashed rgba(0,0,0,0.12);
+    box-shadow: none;
+  }
+  .tile.add .ic {
+    background: rgba(0,0,0,0.06);
+    color: #888;
+    box-shadow: none;
+    font-size: 22px;
+    font-weight: 300;
+  }
+
+  .sub {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.97);
+    backdrop-filter: blur(16px);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    transform: translateY(8%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform .26s cubic-bezier(.22,1,.36,1),
+                opacity .22s ease-out;
+    will-change: transform, opacity;
+  }
+  .sub.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .sub h2 {
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+  .sub label {
+    font-size: 10.5px;
+    color: #888;
+    margin-bottom: -4px;
+    font-weight: 500;
+  }
+  .sub input[type=text], .sub input[type=url] {
+    padding: 9px 11px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 9px;
+    font-size: 12px;
+    background: #fafafa;
+    outline: none;
+    transition: border .15s, background .15s;
+  }
+  .sub input:focus { border-color: var(--accent-a); background: #fff; }
+  .sub .row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .sub .row input[type=text] { flex: 1; }
+  .sub input[type=color] {
+    padding: 2px;
+    width: 38px;
+    height: 32px;
+    flex: 0 0 38px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    background: #fff;
+  }
+  .sub input[type=range] {
+    flex: 1;
+    accent-color: var(--accent-a);
+  }
+  .sub .range-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sub .range-val {
+    font-size: 11px;
+    color: #666;
+    min-width: 32px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .corner-pick {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .corner-pick button {
+    padding: 9px;
+    font-size: 11px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 9px;
+    background: #fafafa;
+    color: #555;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .corner-pick button:hover { background: #fff; }
+  .corner-pick button.active {
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+    color: #fff;
+    border-color: transparent;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 6px;
+  }
+  .btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s, filter .15s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+    color: #fff;
+  }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-secondary { background: rgba(0,0,0,0.05); color: #444; }
+  .btn-secondary:hover { background: rgba(0,0,0,0.09); }
+</style>
+</head>
+<body class="corner-bottom-right">
+
+<div id="stage">
+  <div id="bubble" title="클릭해서 열기">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM7 9h10v2H7V9zm6 5H7v-2h6v2zm4-6H7V6h10v2z"/></svg>
+  </div>
+
+  <div id="panel">
+    <div class="header">
+      <h1>⚡ Quick Launch</h1>
+      <div class="header-buttons">
+        <button class="icon-btn" id="settingsBtn" title="설정">⚙</button>
+        <button class="icon-btn" id="editBtn" title="편집">✎</button>
+        <button class="icon-btn" id="collapseBtn" title="접기">─</button>
+        <button class="icon-btn danger" id="quitBtn" title="종료">×</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+
+    <div id="addForm" class="sub">
+      <h2>새 바로가기</h2>
+      <label>이름</label>
+      <input type="text" id="f-name" placeholder="예: Hongik University" maxlength="20" />
+      <label>URL</label>
+      <input type="url" id="f-url" placeholder="https://..." />
+      <label>아이콘 (글자) / 색상</label>
+      <div class="row">
+        <input type="text" id="f-icon" placeholder="H" maxlength="2" />
+        <input type="color" id="f-color" value="#667eea" />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" id="cancelAdd">취소</button>
+        <button class="btn btn-primary" id="saveAdd">추가</button>
+      </div>
+    </div>
+
+    <div id="settingsForm" class="sub">
+      <h2>위젯 설정</h2>
+
+      <label>위치</label>
+      <div class="corner-pick" id="cornerPick">
+        <button data-c="top-left">↖ 좌상단</button>
+        <button data-c="top-right">↗ 우상단</button>
+        <button data-c="bottom-left">↙ 좌하단</button>
+        <button data-c="bottom-right">↘ 우하단</button>
+      </div>
+
+      <label>아이콘 크기</label>
+      <div class="range-row">
+        <input type="range" id="s-size" min="48" max="96" step="2" />
+        <span class="range-val" id="s-size-val">72</span>
+      </div>
+
+      <label>화면 끝 여백</label>
+      <div class="range-row">
+        <input type="range" id="s-margin" min="0" max="60" step="2" />
+        <span class="range-val" id="s-margin-val">16</span>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" id="closeSettings" style="flex:1;">완료</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const bubble = document.getElementById('bubble');
+  const panel = document.getElementById('panel');
+  const grid = document.getElementById('grid');
+  const addForm = document.getElementById('addForm');
+  const settingsForm = document.getElementById('settingsForm');
+
+  let shortcuts = [];
+  let settings = null;
+  let editMode = false;
+
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+
+  function applySettings() {
+    document.body.classList.remove('corner-bottom-right', 'corner-bottom-left', 'corner-top-right', 'corner-top-left');
+    document.body.classList.add('corner-' + settings.corner);
+    document.documentElement.style.setProperty('--bubble', settings.bubbleSize + 'px');
+  }
+
+  function render() {
+    grid.innerHTML = '';
+    shortcuts.forEach((s, i) => {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.style.animationDelay = (50 + i * 26) + 'ms';
+      tile.innerHTML = `
+        <div class="ic" style="background:${s.color}">${escapeHtml(s.icon || s.name[0])}</div>
+        <div class="lbl">${escapeHtml(s.name)}</div>
+        <button class="del" data-i="${i}">×</button>`;
+      tile.addEventListener('click', (e) => {
+        if (e.target.classList.contains('del')) {
+          shortcuts.splice(i, 1);
+          window.api.saveShortcuts(shortcuts);
+          render();
+        } else if (!editMode) {
+          window.api.openShortcut(s);
+        }
+      });
+      grid.appendChild(tile);
+    });
+
+    const add = document.createElement('div');
+    add.className = 'tile add';
+    add.style.animationDelay = (50 + shortcuts.length * 26) + 'ms';
+    add.innerHTML = `<div class="ic">+</div><div class="lbl">추가</div>`;
+    add.addEventListener('click', openAddForm);
+    grid.appendChild(add);
+  }
+
+  function toggle() {
+    document.body.classList.toggle('expanded');
+    if (document.body.classList.contains('expanded')) {
+      grid.querySelectorAll('.tile').forEach(t => {
+        t.style.animation = 'none';
+        void t.offsetWidth;
+        t.style.animation = '';
+      });
+    } else {
+      closeSub(addForm);
+      closeSub(settingsForm);
+      document.body.classList.remove('edit');
+      editMode = false;
+    }
+  }
+
+  function openSub(el) {
+    closeSub(addForm);
+    closeSub(settingsForm);
+    el.classList.add('open');
+  }
+
+  function closeSub(el) {
+    el.classList.remove('open');
+  }
+
+  function openAddForm() {
+    openSub(addForm);
+    setTimeout(() => document.getElementById('f-name').focus(), 180);
+  }
+
+  function clearAddForm() {
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-url').value = '';
+    document.getElementById('f-icon').value = '';
+  }
+
+  function initSettingsForm() {
+    const cornerBtns = settingsForm.querySelectorAll('#cornerPick button');
+    const sizeIn = document.getElementById('s-size');
+    const sizeVal = document.getElementById('s-size-val');
+    const marginIn = document.getElementById('s-margin');
+    const marginVal = document.getElementById('s-margin-val');
+
+    function paint() {
+      cornerBtns.forEach(b => b.classList.toggle('active', b.dataset.c === settings.corner));
+      sizeIn.value = settings.bubbleSize;
+      sizeVal.textContent = settings.bubbleSize;
+      marginIn.value = settings.edgeMargin;
+      marginVal.textContent = settings.edgeMargin;
+    }
+    paint();
+
+    cornerBtns.forEach(b => b.addEventListener('click', async () => {
+      settings = await window.api.saveSettings({ corner: b.dataset.c });
+      applySettings();
+      paint();
+    }));
+
+    sizeIn.addEventListener('input', () => {
+      settings.bubbleSize = +sizeIn.value;
+      sizeVal.textContent = settings.bubbleSize;
+      document.documentElement.style.setProperty('--bubble', settings.bubbleSize + 'px');
+    });
+    sizeIn.addEventListener('change', async () => {
+      settings = await window.api.saveSettings({ bubbleSize: settings.bubbleSize });
+    });
+
+    marginIn.addEventListener('input', () => {
+      settings.edgeMargin = +marginIn.value;
+      marginVal.textContent = settings.edgeMargin;
+    });
+    marginIn.addEventListener('change', async () => {
+      settings = await window.api.saveSettings({ edgeMargin: settings.edgeMargin });
+    });
+  }
+
+  let clickable = false;
+  function setClickable(yes) {
+    if (yes === clickable) return;
+    clickable = yes;
+    window.api.setClickable(yes);
+  }
+
+  bubble.addEventListener('click', toggle);
+  document.getElementById('collapseBtn').addEventListener('click', toggle);
+  document.getElementById('quitBtn').addEventListener('click', () => window.api.quit());
+  document.getElementById('editBtn').addEventListener('click', () => {
+    editMode = !editMode;
+    document.body.classList.toggle('edit', editMode);
+  });
+  document.getElementById('settingsBtn').addEventListener('click', () => openSub(settingsForm));
+  document.getElementById('closeSettings').addEventListener('click', () => closeSub(settingsForm));
+  document.getElementById('cancelAdd').addEventListener('click', () => {
+    closeSub(addForm);
+    clearAddForm();
+  });
+  document.getElementById('saveAdd').addEventListener('click', async () => {
+    const name = document.getElementById('f-name').value.trim();
+    let url = document.getElementById('f-url').value.trim();
+    const icon = document.getElementById('f-icon').value.trim() || name[0]?.toUpperCase() || '?';
+    const color = document.getElementById('f-color').value;
+    if (!name || !url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    shortcuts.push({ name, url, icon, color });
+    await window.api.saveShortcuts(shortcuts);
+    closeSub(addForm);
+    clearAddForm();
+    render();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    setClickable(!!(el && el.closest('#bubble, #panel')));
+  });
+  window.addEventListener('mouseleave', () => setClickable(false));
+  document.addEventListener('mouseleave', () => setClickable(false));
+
+  (async () => {
+    settings = await window.api.getSettings();
+    applySettings();
+    shortcuts = await window.api.getShortcuts();
+    render();
+    initSettingsForm();
+  })();
+</script>
+</body>
+</html>
