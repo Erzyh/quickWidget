@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, screen, shell, Tray, Menu, nativeImage } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 
@@ -161,6 +162,11 @@ app.whenReady().then(() => {
   }
   createWindow();
   createTray();
+
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 6 * 60 * 60 * 1000);
+  }
 });
 
 app.on('window-all-closed', (e) => e.preventDefault());
