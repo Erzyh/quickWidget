@@ -1,7 +1,7 @@
 {
   "name": "labapp-widget",
-  "version": "0.1.0",
-  "description": "EGLAB floating desktop widget for quick site access",
+  "version": "0.1.1",
+  "description": "EGLAB floating desktop widget",
   "main": "main.js",
   "author": "ErzYh",
   "scripts": {
@@ -51,7 +51,8 @@
       {
         "provider": "github",
         "owner": "Erzyh",
-        "repo": "quickWidget"
+        "repo": "quickWidget",
+        "releaseType": "release"
       }
     ]
   },
