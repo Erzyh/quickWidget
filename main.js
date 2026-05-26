@@ -35,7 +35,8 @@ const defaultSettings = {
   firstRun: true,
   corner: 'bottom-right',
   bubbleSize: 72,
-  edgeMargin: 16
+  edgeMargin: 16,
+  displayId: null
 };
 
 let win;
@@ -70,9 +71,17 @@ function applyAutoStart(enabled) {
   app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath, args: [] });
 }
 
+function pickDisplay(displayId) {
+  if (displayId != null) {
+    const match = screen.getAllDisplays().find(d => d.id === displayId);
+    if (match) return match;
+  }
+  return screen.getPrimaryDisplay();
+}
+
 function positionWindow() {
   const s = loadSettings();
-  const { workArea } = screen.getPrimaryDisplay();
+  const { workArea } = pickDisplay(s.displayId);
   const m = s.edgeMargin;
   const x = s.corner.includes('right')
     ? workArea.x + workArea.width - WINDOW.width - m
@@ -163,6 +172,10 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
+  screen.on('display-added', () => positionWindow());
+  screen.on('display-removed', () => positionWindow());
+  screen.on('display-metrics-changed', () => positionWindow());
+
   if (app.isPackaged) {
     autoUpdater.checkForUpdatesAndNotify().catch(() => {});
     setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 6 * 60 * 60 * 1000);
@@ -173,6 +186,17 @@ app.on('window-all-closed', (e) => e.preventDefault());
 
 ipcMain.handle('get-shortcuts', () => loadShortcuts());
 ipcMain.handle('save-shortcuts', (_e, list) => saveShortcuts(list));
+
+ipcMain.handle('get-displays', () => {
+  const primaryId = screen.getPrimaryDisplay().id;
+  return screen.getAllDisplays().map((d, i) => ({
+    id: d.id,
+    index: i,
+    width: d.bounds.width,
+    height: d.bounds.height,
+    primary: d.id === primaryId
+  }));
+});
 
 ipcMain.handle('get-settings', () => loadSettings());
 ipcMain.handle('save-settings', (_e, patch) => {

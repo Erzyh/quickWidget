@@ -325,6 +325,33 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .display-pick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .display-pick button {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    font-size: 11px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 9px;
+    background: #fafafa;
+    color: #555;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .display-pick button:hover { background: #fff; }
+  .display-pick button.active {
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+    color: #fff;
+    border-color: transparent;
+  }
+
   .corner-pick {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -393,7 +420,7 @@
     <div class="grid" id="grid"></div>
 
     <div id="addForm" class="sub">
-      <h2>새 바로가기</h2>
+      <h2 id="addFormTitle">새 바로가기</h2>
       <label>이름</label>
       <input type="text" id="f-name" placeholder="예: Hongik University" maxlength="20" />
       <label>URL</label>
@@ -411,6 +438,9 @@
 
     <div id="settingsForm" class="sub">
       <h2>위젯 설정</h2>
+
+      <label>모니터</label>
+      <div class="display-pick" id="displayPick"></div>
 
       <label>위치</label>
       <div class="corner-pick" id="cornerPick">
@@ -449,6 +479,7 @@
   let shortcuts = [];
   let settings = null;
   let editMode = false;
+  let editingIndex = null;
 
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -475,7 +506,9 @@
           shortcuts.splice(i, 1);
           window.api.saveShortcuts(shortcuts);
           render();
-        } else if (!editMode) {
+        } else if (editMode) {
+          openEditForm(i);
+        } else {
           window.api.openShortcut(s);
         }
       });
@@ -517,6 +550,23 @@
   }
 
   function openAddForm() {
+    editingIndex = null;
+    document.getElementById('addFormTitle').textContent = '새 바로가기';
+    document.getElementById('saveAdd').textContent = '추가';
+    clearAddForm();
+    openSub(addForm);
+    setTimeout(() => document.getElementById('f-name').focus(), 180);
+  }
+
+  function openEditForm(i) {
+    const s = shortcuts[i];
+    editingIndex = i;
+    document.getElementById('addFormTitle').textContent = '바로가기 편집';
+    document.getElementById('saveAdd').textContent = '저장';
+    document.getElementById('f-name').value = s.name || '';
+    document.getElementById('f-url').value = s.url || '';
+    document.getElementById('f-icon').value = s.icon || '';
+    document.getElementById('f-color').value = s.color || '#667eea';
     openSub(addForm);
     setTimeout(() => document.getElementById('f-name').focus(), 180);
   }
@@ -525,17 +575,40 @@
     document.getElementById('f-name').value = '';
     document.getElementById('f-url').value = '';
     document.getElementById('f-icon').value = '';
+    document.getElementById('f-color').value = '#667eea';
   }
 
-  function initSettingsForm() {
+  async function initSettingsForm() {
     const cornerBtns = settingsForm.querySelectorAll('#cornerPick button');
+    const displayBox = document.getElementById('displayPick');
     const sizeIn = document.getElementById('s-size');
     const sizeVal = document.getElementById('s-size-val');
     const marginIn = document.getElementById('s-margin');
     const marginVal = document.getElementById('s-margin-val');
 
+    const displays = await window.api.getDisplays();
+    if (displays.length <= 1) {
+      displayBox.previousElementSibling.style.display = 'none';
+      displayBox.style.display = 'none';
+    } else {
+      displayBox.innerHTML = '';
+      displays.forEach(d => {
+        const b = document.createElement('button');
+        b.dataset.id = String(d.id);
+        b.textContent = `${d.index + 1}. ${d.width}×${d.height}${d.primary ? ' ★' : ''}`;
+        b.addEventListener('click', async () => {
+          settings = await window.api.saveSettings({ displayId: d.id });
+          paint();
+        });
+        displayBox.appendChild(b);
+      });
+    }
+
     function paint() {
       cornerBtns.forEach(b => b.classList.toggle('active', b.dataset.c === settings.corner));
+      displayBox.querySelectorAll('button').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.id) === settings.displayId);
+      });
       sizeIn.value = settings.bubbleSize;
       sizeVal.textContent = settings.bubbleSize;
       marginIn.value = settings.edgeMargin;
@@ -586,6 +659,7 @@
   document.getElementById('cancelAdd').addEventListener('click', () => {
     closeSub(addForm);
     clearAddForm();
+    editingIndex = null;
   });
   document.getElementById('saveAdd').addEventListener('click', async () => {
     const name = document.getElementById('f-name').value.trim();
@@ -594,10 +668,16 @@
     const color = document.getElementById('f-color').value;
     if (!name || !url) return;
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    shortcuts.push({ name, url, icon, color });
+    if (editingIndex !== null) {
+      const existing = shortcuts[editingIndex] || {};
+      shortcuts[editingIndex] = { ...existing, name, url, icon, color };
+    } else {
+      shortcuts.push({ name, url, icon, color });
+    }
     await window.api.saveShortcuts(shortcuts);
     closeSub(addForm);
     clearAddForm();
+    editingIndex = null;
     render();
   });
 
