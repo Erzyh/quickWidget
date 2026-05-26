@@ -230,7 +230,10 @@
     cursor: pointer;
   }
   body.edit .tile .del { display: flex; }
-  body.edit .tile { animation: wobble .5s ease-in-out infinite alternate; }
+  body.edit .tile {
+    opacity: 1;
+    animation: wobble .5s ease-in-out infinite alternate;
+  }
   @keyframes wobble {
     from { transform: rotate(-1.2deg); }
     to { transform: rotate(1.2deg); }
